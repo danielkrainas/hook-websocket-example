@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+    <title>Socket Override Demo</title>
+
+    <script type="text/javascript">
+        /* 
+            We put our override code in the head to force execution 
+            before any other scripts have loaded yet (ideally).
+            Some libraries, like socket.io, may cache a reference to
+            the WebSocket constructor before we can get to it otherwise.
+        */
+        (function () {
+            function makeWebSocketIntercept(RealWebSocket) {
+                function CtorIntercept(url, protocols) {
+                    if (CtorIntercept.active) {
+                        console.log('original url', url);
+
+                        // janky but reliable url parsing/editing provided by the browser
+                        var anchor = document.createElement('a');
+                        anchor.href = url;
+                        anchor.pathname = '/socket/';
+                        url = anchor.href;
+
+                        console.log('rewritten url', url);
+                    }
+
+                    return new RealWebSocket(url, protocols);
+                };
+
+                CtorIntercept.active = true;
+                return CtorIntercept;
+            }
+
+            window.WebSocket = makeWebSocketIntercept(WebSocket);
+            if (window.loglist) {
+                loglist.add('WebSocket overridden');
+            } else {
+                console.log('WebSocket overridden');
+            }
+        })();
+    </script>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/css/bootstrap.min.css" type="text/css" rel="stylesheet" media="all" />
+</head>
+
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12">
+                <p>
+                    <button type="button" class="btn btn-primary" onclick="toggleIntercept()">Toggle Interceptor</button>
+                    <button type="button" class="btn btn-primary" onclick="resetConnection()">Reset WebSocket</button>
+                </p>
+
+                <p>
+                    In this demo, a socket io client tries to open a connection to the server path <span class="label label-danger">/notsocket/</span>. The interceptor, enabled by default, overwrites the default <span class="label label-default">WebSocket</span> constructor to point to the proper websocket path of <span class="label label-success">/socket/</span>.
+                </p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <loglist id="log"></loglist>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Utilities -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/riot/2.3.15/riot+compiler.min.js"></script>
+    <script src="/socket/socket.io.js"></script>
+
+    <script type="riot/tag">
+        <loglist>
+            <h4>Log:</h4>
+            <ul class="list-group">
+                <li each={ items } class="list-group-item">
+                    { text }
+                </li>
+            </ul>
+
+            this.items = this.opts.items || [];
+            this.add = function () {
+                var text = Array.prototype.map.call(arguments, function (o) {
+                    return (o || '').toString();
+                }).join(' ');
+
+                console.log(text);
+                this.items.unshift({ text: text });
+                scrollToTop();
+                this.update();
+            };
+        </loglist>
+    </script>
+    <!-- END Demo Utilities -->
+
+    <script type="text/javascript">
+        function scrollToTop() {
+            document.body.scrollTop = document.documentElement.scrollTop = 0;
+        }
+
+        function toggleIntercept() {
+            WebSocket.active = !WebSocket.active;
+            loglist.add('intercept active:', WebSocket.active.toString());
+        }
+
+        function resetConnection() {
+            loglist.add('resetting socket connection');
+            socket.close();
+            window.socket = createConnection();
+        }
+
+        function createConnection() {
+            var socket = io({ transports: ['websocket'], resource: 'test', path: '/notsocket' });
+            socket.on('connect', function () {
+                console.log(socket);
+                loglist.add('socket connected to: ', socket.io.engine.transport.ws.url);
+            });
+
+            socket.on('connect_error', function (err) {
+                console.log(err);
+                loglist.add('socket error: ', err.toString());
+            });
+
+            loglist.add('socket created');
+            return socket;
+        }
+
+        (function () {
+            window.loglist = riot.mount('loglist')[0];
+            window.socket = createConnection();
+        })();
+    </script>
+</body>
+</html>
