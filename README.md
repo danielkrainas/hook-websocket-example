@@ -1,4 +1,4 @@
-# Hooking WebSockets
+# Hook WebSockets Example
 
 Proof of concept to show what it takes to hook and modify constructor arguments for a WebSocket in the browser. 
 
