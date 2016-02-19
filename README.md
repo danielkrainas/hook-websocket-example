@@ -14,7 +14,7 @@ Start the server with `npm start` like so:
 
 > $ npm start
 
-**note:** the server will start listening on port 3000 by default. This can be overidden using the NODE_PORT environment variable.
+**note:** the server will start listening on port 3000 by default. This can be overidden using the `NODE_PORT` environment variable.
 
 ## License
 
